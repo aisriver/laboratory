@@ -4,7 +4,7 @@
  * @作者: 廖军
  * @Date: 2021-03-08 16:08:42
  * @LastEditors: 廖军
- * @LastEditTime: 2021-03-09 17:07:37
+ * @LastEditTime: 2021-03-10 10:42:18
  */
 
 import { AnnotatedPrediction } from '@tensorflow-models/handpose';
@@ -100,6 +100,25 @@ export const formatPositions = (data: number[][]) => {
 };
 
 /**
+ * 手指状态
+ */
+export interface FingerStatus {
+  angles: number[];
+  isClose: boolean;
+}
+
+/**
+ * 手势状态
+ */
+export interface HandPoseStatus {
+  thumb: FingerStatus;
+  indexFinger: FingerStatus;
+  middleFinger: FingerStatus;
+  ringFinger: FingerStatus;
+  pinky: FingerStatus;
+}
+
+/**
  *
  * @param data 获取手势状态
  */
@@ -148,18 +167,72 @@ export const getHandPoseStatus = (data: AnnotatedPrediction) => {
   return {
     thumb: {
       angles: tAngles,
+      // 通过弯曲角度判断手指是否是闭合状态
+      isClose: tAngles[2] <= 160,
     },
     indexFinger: {
       angles: iAngles,
+      isClose: iAngles[1] <= 150,
     },
     middleFinger: {
       angles: mAngles,
+      isClose: mAngles[1] <= 140,
     },
     ringFinger: {
       angles: rAngles,
+      isClose: rAngles[1] <= 140,
     },
     pinky: {
       angles: pAngles,
+      isClose: pAngles[1] <= 140,
     },
-  };
+  } as HandPoseStatus;
 };
+
+export interface RegisterHandPose {
+  name: string;
+  closeStatus: boolean[]; // thumb indexFinger middleFinger ringFinger pinky
+}
+
+export class HandPoseCustom {
+  private pose: RegisterHandPose[] = [];
+  /**
+   * 注册手势
+   * @param data
+   */
+  public registerHandPose = (data: RegisterHandPose[]) => {
+    this.pose = data;
+  };
+  public recognize = (data: HandPoseStatus) => {
+    const { thumb, indexFinger, middleFinger, ringFinger, pinky } = data;
+    const currentPose = [
+      thumb.isClose,
+      indexFinger.isClose,
+      middleFinger.isClose,
+      ringFinger.isClose,
+      pinky.isClose,
+    ];
+    return this.pose.find(
+      item => JSON.stringify(item.closeStatus) === JSON.stringify(currentPose),
+    )?.name;
+  };
+}
+
+/**
+ * 注册一组大屏手势
+ */
+export const screenHandPose = new HandPoseCustom();
+screenHandPose.registerHandPose([
+  { name: 'ok', closeStatus: [true, true, false, false, false] },
+  { name: 'one', closeStatus: [true, false, true, true, true] },
+  { name: 'two', closeStatus: [true, false, false, true, true] },
+  { name: 'three', closeStatus: [true, false, false, false, true] },
+  { name: 'four', closeStatus: [true, false, false, false, false] },
+  { name: 'five', closeStatus: [false, false, false, false, false] },
+  { name: 'six', closeStatus: [false, true, true, true, false] },
+  { name: 'spiderMan', closeStatus: [false, false, true, true, false] },
+  { name: 'eight', closeStatus: [false, false, true, true, true] },
+  { name: 'fuc*', closeStatus: [false, false, true, false, false] },
+  { name: 'close', closeStatus: [true, true, true, true, true] },
+  { name: 'good', closeStatus: [false, true, true, true, true] },
+]);

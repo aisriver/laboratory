@@ -4,18 +4,19 @@
  * @作者: 廖军
  * @Date: 2021-03-09 13:45:36
  * @LastEditors: 廖军
- * @LastEditTime: 2021-03-09 17:10:39
+ * @LastEditTime: 2021-03-10 10:58:42
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as handpose from '@tensorflow-models/handpose';
 import { ScatterGL } from 'scatter-gL';
 import { Points } from 'scatter-gL/dist/index';
 import '@tensorflow/tfjs-backend-webgl';
-import { getHandPoseStatus } from '@/utils/handPose';
+import { getHandPoseStatus, screenHandPose } from '@/utils/handPose';
 import styles from './index.less';
 
 require('@tensorflow/tfjs-backend-webgl');
+
 const VIDEO_WIDTH = 640;
 const VIDEO_HEIGHT = 500;
 const renderPointcloud = true;
@@ -39,6 +40,7 @@ export default () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const outputRef = useRef<HTMLCanvasElement>(null);
   const scatterRef = useRef<HTMLDivElement>(null);
+  const [pose, setPose] = useState<string>();
 
   const setupCamera = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -52,8 +54,6 @@ export default () => {
       audio: false,
       video: {
         facingMode: 'user',
-        // Only setting the video to a specified size in order to accommodate a
-        // point cloud, so on mobile devices accept the default size.
         width: VIDEO_WIDTH,
         height: VIDEO_HEIGHT,
       },
@@ -138,6 +138,7 @@ export default () => {
 
         const landmarksRealTime = async (video: HTMLVideoElement) => {
           async function frameLandmarks() {
+            // 绘制视频
             ctx.drawImage(
               video,
               0,
@@ -152,9 +153,13 @@ export default () => {
             const predictions = await model.estimateHands(video);
             if (predictions.length > 0) {
               console.log('handPoseStatus', getHandPoseStatus(predictions[0]));
+              const newPose = screenHandPose.recognize(
+                getHandPoseStatus(predictions[0]),
+              );
+              setPose(newPose);
               const result = predictions[0].landmarks;
               drawKeypoints(result);
-              if (renderPointcloud === true && scatterGL != null) {
+              if (renderPointcloud && scatterGL) {
                 const pointsData = result.map(point => {
                   return [-point[0], -point[1], -point[2]];
                 });
@@ -200,6 +205,7 @@ export default () => {
 
   return (
     <div>
+      <div style={{ fontSize: 18, color: 'red' }}>{pose}</div>
       <div className={styles.canvasWrapper}>
         <canvas ref={outputRef} />
         <video ref={videoRef} playsInline className={styles.video} />
