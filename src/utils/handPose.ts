@@ -4,10 +4,29 @@
  * @作者: 廖军
  * @Date: 2021-03-08 16:08:42
  * @LastEditors: 廖军
- * @LastEditTime: 2021-03-10 10:42:18
+ * @LastEditTime: 2021-03-10 11:49:44
  */
 
 import { AnnotatedPrediction } from '@tensorflow-models/handpose';
+
+/**
+ * 节流
+ * @param fn
+ * @param delay
+ * @returns
+ */
+export const throttle = (fn: Function, delay: number) => {
+  let timer: NodeJS.Timeout | null;
+  return (...args: any) => {
+    if (timer) {
+      return;
+    }
+    timer = setTimeout(() => {
+      fn.apply(this, args);
+      timer = null;
+    }, delay);
+  };
+};
 
 export interface Position {
   x: number;

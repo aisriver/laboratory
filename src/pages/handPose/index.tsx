@@ -4,15 +4,17 @@
  * @作者: 廖军
  * @Date: 2021-03-09 13:45:36
  * @LastEditors: 廖军
- * @LastEditTime: 2021-03-10 10:58:42
+ * @LastEditTime: 2021-03-10 17:03:18
  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import * as echarts from 'echarts';
 import * as handpose from '@tensorflow-models/handpose';
 import { ScatterGL } from 'scatter-gL';
 import { Points } from 'scatter-gL/dist/index';
 import '@tensorflow/tfjs-backend-webgl';
-import { getHandPoseStatus, screenHandPose } from '@/utils/handPose';
+import { getHandPoseStatus, screenHandPose, throttle } from '@/utils/handPose';
+import Earth, { ChartCurrent } from './components/Earth';
 import styles from './index.less';
 
 require('@tensorflow/tfjs-backend-webgl');
@@ -40,6 +42,7 @@ export default () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const outputRef = useRef<HTMLCanvasElement>(null);
   const scatterRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<ChartCurrent>(null);
   const [pose, setPose] = useState<string>();
 
   const setupCamera = async () => {
@@ -100,6 +103,65 @@ export default () => {
     ctx.stroke(region);
   }
 
+  const getNewPose = throttle((newPose?: string) => {
+    setPose(newPose);
+    if (!chartRef.current?.myChart) {
+      return;
+    }
+    const option: any = chartRef.current?.myChart.getOption();
+    // 策略
+    const strategy: { [key: string]: Function } = {
+      // 缩小
+      close: () => {
+        option.globe[0].viewControl.distance += 50;
+        chartRef.current?.myChart?.setOption(option);
+      },
+      // 放大
+      five: () => {
+        option.globe[0].viewControl.distance -= 50;
+        chartRef.current?.myChart?.setOption(option);
+      },
+      // 旋转
+      ok: () => {
+        option.globe[0].viewControl.autoRotate = true;
+        chartRef.current?.myChart?.setOption(option);
+      },
+      // 取消旋转
+      good: () => {
+        option.globe[0].viewControl.autoRotate = false;
+        chartRef.current?.myChart?.setOption(option);
+      },
+      // 图例切换
+      one: () => {
+        chartRef.current?.myChart?.dispatchAction({
+          type: 'legendToggleSelect',
+          name: 'American Airlines',
+        });
+      },
+      two: () => {
+        chartRef.current?.myChart?.dispatchAction({
+          type: 'legendToggleSelect',
+          name: 'Air China',
+        });
+      },
+      three: () => {
+        chartRef.current?.myChart?.dispatchAction({
+          type: 'legendToggleSelect',
+          name: 'China Southern Airlines',
+        });
+      },
+      four: () => {
+        chartRef.current?.myChart?.dispatchAction({
+          type: 'legendToggleSelect',
+          name: 'Delta Air Lines',
+        });
+      },
+      // 其他
+      spiderMan: () => {},
+    };
+    strategy[newPose!]?.();
+  }, 10);
+
   useEffect(() => {
     if (videoRef.current && outputRef.current && scatterRef.current) {
       (async () => {
@@ -156,7 +218,9 @@ export default () => {
               const newPose = screenHandPose.recognize(
                 getHandPoseStatus(predictions[0]),
               );
-              setPose(newPose);
+              // 节流
+              getNewPose(newPose);
+
               const result = predictions[0].landmarks;
               drawKeypoints(result);
               if (renderPointcloud && scatterGL) {
@@ -205,7 +269,18 @@ export default () => {
 
   return (
     <div>
-      <div style={{ fontSize: 18, color: 'red' }}>{pose}</div>
+      <div
+        style={{
+          fontSize: 36,
+          color: 'red',
+          position: 'fixed',
+          top: 5,
+          left: 5,
+          zIndex: 999,
+        }}
+      >
+        {pose}
+      </div>
       <div className={styles.canvasWrapper}>
         <canvas ref={outputRef} />
         <video ref={videoRef} playsInline className={styles.video} />
@@ -215,6 +290,7 @@ export default () => {
         ref={scatterRef}
         className={styles.scatterGlContainer}
       />
+      <Earth ref={chartRef} />
     </div>
   );
 };
