@@ -4,24 +4,21 @@
  * @作者: 廖军
  * @Date: 2021-03-09 13:45:36
  * @LastEditors: 廖军
- * @LastEditTime: 2021-03-10 17:03:18
+ * @LastEditTime: 2021-03-11 15:54:02
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import * as echarts from 'echarts';
 import * as handpose from '@tensorflow-models/handpose';
 import { ScatterGL } from 'scatter-gL';
 import { Points } from 'scatter-gL/dist/index';
 import '@tensorflow/tfjs-backend-webgl';
 import { getHandPoseStatus, screenHandPose, throttle } from '@/utils/handPose';
-import Earth, { ChartCurrent } from './components/Earth';
+import Earth, { ChartCurrent } from '@/components/Earth';
 import styles from './index.less';
-
-require('@tensorflow/tfjs-backend-webgl');
 
 const VIDEO_WIDTH = 640;
 const VIDEO_HEIGHT = 500;
-const renderPointcloud = true;
+const renderPointCloud = true;
 let videoWidth: number,
   videoHeight: number,
   rafID: number,
@@ -45,13 +42,16 @@ export default () => {
   const chartRef = useRef<ChartCurrent>(null);
   const [pose, setPose] = useState<string>();
 
+  /**
+   * 相机设置
+   * @returns video
+   */
   const setupCamera = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error(
         'Browser API navigator.mediaDevices.getUserMedia not available',
       );
     }
-
     const video = videoRef.current!;
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
@@ -62,7 +62,6 @@ export default () => {
       },
     });
     video.srcObject = stream;
-
     return new Promise(resolve => {
       video.onloadedmetadata = () => {
         resolve(video);
@@ -70,39 +69,47 @@ export default () => {
     });
   };
 
-  function drawPoint(y: number, x: number, r: number) {
+  /**
+   * 绘制点
+   * @param y
+   * @param x
+   * @param r
+   */
+  const drawPoint = (y: number, x: number, r: number) => {
     ctx.beginPath();
     ctx.arc(x, y, r, 0, 2 * Math.PI);
     ctx.fill();
-  }
+  };
 
-  function drawKeypoints(keypoints: number[][]) {
-    for (let i = 0; i < keypoints.length; i++) {
-      const y = keypoints[i][0];
-      const x = keypoints[i][1];
-      drawPoint(x - 2, y - 2, 3);
-    }
-
+  const drawKeyPoints = (keyPoints: number[][]) => {
+    keyPoints.forEach(item => drawPoint(item[0] - 2, item[1] - 2, 3));
     Object.keys(fingerLookupIndices).forEach(key => {
-      const points = fingerLookupIndices[key].map(idx => keypoints[idx]);
+      const points = fingerLookupIndices[key].map(idx => keyPoints[idx]);
       drawPath(points, false);
     });
-  }
+  };
 
-  function drawPath(points: number[][], closePath: boolean) {
+  /**
+   * 绘制线
+   * @param points
+   * @param closePath
+   */
+  const drawPath = (points: number[][], closePath: boolean) => {
     const region = new Path2D();
     region.moveTo(points[0][0], points[0][1]);
     for (let i = 1; i < points.length; i++) {
       const point = points[i];
       region.lineTo(point[0], point[1]);
     }
-
     if (closePath) {
       region.closePath();
     }
     ctx.stroke(region);
-  }
+  };
 
+  /**
+   * 获取到新手势
+   */
   const getNewPose = throttle((newPose?: string) => {
     setPose(newPose);
     if (!chartRef.current?.myChart) {
@@ -114,22 +121,22 @@ export default () => {
       // 缩小
       close: () => {
         option.globe[0].viewControl.distance += 50;
-        chartRef.current?.myChart?.setOption(option);
+        chartRef.current?.myChart?.setOption({ globe: option.globe });
       },
       // 放大
       five: () => {
         option.globe[0].viewControl.distance -= 50;
-        chartRef.current?.myChart?.setOption(option);
+        chartRef.current?.myChart?.setOption({ globe: option.globe });
       },
       // 旋转
       ok: () => {
         option.globe[0].viewControl.autoRotate = true;
-        chartRef.current?.myChart?.setOption(option);
+        chartRef.current?.myChart?.setOption({ globe: option.globe });
       },
       // 取消旋转
       good: () => {
         option.globe[0].viewControl.autoRotate = false;
-        chartRef.current?.myChart?.setOption(option);
+        chartRef.current?.myChart?.setOption({ globe: option.globe });
       },
       // 图例切换
       one: () => {
@@ -160,7 +167,7 @@ export default () => {
       spiderMan: () => {},
     };
     strategy[newPose!]?.();
-  }, 10);
+  }, 100);
 
   useEffect(() => {
     if (videoRef.current && outputRef.current && scatterRef.current) {
@@ -191,7 +198,7 @@ export default () => {
           [-VIDEO_WIDTH, -VIDEO_HEIGHT, 0],
         ];
 
-        if (renderPointcloud) {
+        if (renderPointCloud) {
           scatterGL = new ScatterGL(scatterRef.current!, {
             rotateOnStart: false,
             selectEnabled: false,
@@ -222,8 +229,8 @@ export default () => {
               getNewPose(newPose);
 
               const result = predictions[0].landmarks;
-              drawKeypoints(result);
-              if (renderPointcloud && scatterGL) {
+              drawKeyPoints(result);
+              if (renderPointCloud && scatterGL) {
                 const pointsData = result.map(point => {
                   return [-point[0], -point[1], -point[2]];
                 });

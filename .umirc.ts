@@ -5,7 +5,8 @@ export default defineConfig({
     type: 'none',
   },
   routes: [
-    { path: '/', component: '@/pages/handPose/index' },
+    { path: '/', component: '@/pages/screen/index' },
+    { path: '/handPose', component: '@/pages/handPose/index' },
     { path: '/ocr', component: '@/pages/ocr/index' },
   ],
 });
