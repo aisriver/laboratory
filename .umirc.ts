@@ -5,7 +5,12 @@ export default defineConfig({
     type: 'none',
   },
   routes: [
-    { path: '/', component: '@/pages/screen/index' },
+    { path: '/', component: '@/pages/screen/socketScreen/index' },
+    {
+      path: '/socketScreen/control',
+      component: '@/pages/screen/socketScreen/control/index',
+    },
+    { path: '/screen', component: '@/pages/screen/index' },
     { path: '/handPose', component: '@/pages/handPose/index' },
     { path: '/ocr', component: '@/pages/ocr/index' },
   ],
