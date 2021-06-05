@@ -5,7 +5,7 @@ export default defineConfig({
     type: 'none',
   },
   routes: [
-    { path: '/', component: '@/pages/screen/socketScreen/index' },
+    { path: '/', component: '@/pages/randomLayout/index' },
     {
       path: '/socketScreen/control',
       component: '@/pages/screen/socketScreen/control/index',
